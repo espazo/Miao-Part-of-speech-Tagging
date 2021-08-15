@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>语料管理 - 湘西苗文词性标注系统</title>
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+
+    <style>
+        .active {
+            font-weight: bold;
+        }
+
+        tbody tr:nth-of-type(n+2) td:first-child:hover {
+            background-color: lightcyan;
+            cursor: pointer;
+        }
+
+        @font-face {
+            font-family: Miao;
+            src: url("Miao.ttf")
+        }
+
+        textarea {
+            font-family: Miao, sans-serif;
+        }
+
+        .btn-xs:hover {
+            color: red;
+        }
+
+        #file_input {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-default">
+    <div class="navbar-header">
+        <a class="navbar-brand" href="index.html">湘西苗文词性标注系统</a>
+    </div>
+
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        <ul class="nav navbar-nav">
+            <li class="active"><a href="index.html">语料管理</a></li>
+            <li><a href="pages/CXBZ.html">词性标注系统</a></li>
+            <li><a href="pages/GZTQ.html">词性规则提取</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            语料管理
+            <button id="upload_btn" type="button" class="btn btn-success pull-right">上传语料</button>
+            <input id="file_input" type="file"/>
+        </div>
+        <div class="panel-body">
+            <p>
+                文件格式：[k]/[v]_[k]/[v]_
+                <br>
+                [k]：词
+                <br>
+                /：英文斜杠
+                <br>
+                [v]：词性
+                <br>
+                _：空格、制表或者换行符
+            </p>
+        </div>
+
+
+        <table class="table">
+            <tr>
+                <th>文件名</th>
+                <th>操作</th>
+            </tr>
+            <tr>
+                <td>文件 1</td>
+                <td>
+                    <button type="button" class="btn btn-default btn-xs">
+                        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span> 删除
+                    </button>
+                </td>
+            </tr>
+            <tr>
+                <td>文件 2</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>文件 3</td>
+                <td></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <!--                    <h4 class="modal-title" id="myModalLabel">查看文件</h4>-->
+                    <input id="myModalLabel" type="text"/>
+                </div>
+                <div class="modal-body">
+                    <textarea id="raw_text" class="form-control" rows="14"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button id="file_save" type="button" class="btn btn-primary">保存更改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Modal -->
+    <div class="modal fade" id="removeModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">是否删除文件？</h4>
+                </div>
+
+                <div class="modal-body"></div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button id="modal_remove_btn" type="button" class="btn btn-danger">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const log = console.log.bind(console);
+
+    const init = function () {
+
+        const table_event = function () {
+            const files_td = document.querySelectorAll('tbody tr:nth-of-type(n+2) td:first-child');
+            const myModalLabel = document.querySelector('#myModalLabel');
+            const raw_text = document.querySelector('#raw_text');
+
+            let current_file_index = 0;
+            const edit_file_event = function () {
+                for (let i = 0; i < files_td.length; i++) {
+                    files_td[i].addEventListener('click', function () {
+                        current_file_index = i;
+
+                        fetch('http://localhost:6187/', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                pages: 'YLGL',
+                                model: 'file',
+                                data: files_td[i].innerHTML
+                            }),
+                        }).then(function (res) {
+                            return res.json();
+                        }).then(function (res) {
+                            if (res.status === 1) {
+                                raw_text.value = res.data;
+
+                                myModalLabel.value = files_td[i].innerHTML;
+                                $('#myModal').modal();
+                            } else {
+                                alert('错误：' + res.message);
+                            }
+                        });
+                    });
+                }
+            }
+
+            const save_file_event = function () {
+                const file_save_btn = document.querySelector('#file_save');
+                file_save_btn.addEventListener('click', function () {
+                    fetch('http://localhost:6187/', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            pages: 'YLGL',
+                            model: 'save',
+                            data: JSON.stringify({
+                                name: files_td[current_file_index].innerHTML,
+                                new_name: myModalLabel.value,
+                                data: raw_text.value
+                            }),
+                        }),
+                    }).then(function (res) {
+                        return res.json();
+                    }).then(function (res) {
+                        if (res.status === 1) {
+                            alert('文件格式无误，保存成功。');
+                            location.reload();
+                        } else {
+                            alert('错误：' + res.message);
+                        }
+                    });
+                });
+            }
+
+            const remove_file_event = function () {
+                let current_file = 0;
+
+                const open_modal = function () {
+                    const remove_file_btn = document.querySelectorAll('.remove_file_btn');
+                    for (let i = 0; i < remove_file_btn.length; i++) {
+                        remove_file_btn[i].addEventListener('click', function () {
+                            current_file = i;
+
+                            $('#removeModal').modal();
+
+                            const modal_body = document.querySelector('#removeModal .modal-body');
+                            modal_body.innerHTML = '是否确认删除《' + files_td[i].innerHTML + '》这个文件？一旦删除无法恢复'
+                        });
+                    }
+                }
+
+                const action_remove_file = function () {
+                    const modal_remove_btn = document.querySelector('#modal_remove_btn');
+                    modal_remove_btn.addEventListener('click', function () {
+                        fetch('http://localhost:6187/', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                pages: 'YLGL',
+                                model: 'remove',
+                                data: files_td[current_file].innerHTML,
+                            }),
+                        }).then(function (res) {
+                            return res.json();
+                        }).then(function (res) {
+                            if (res.status === 1) {
+                                alert('删除成功！');
+                                location.reload();
+                            } else {
+                                alert('错误：' + res.message);
+                            }
+                        });
+                    });
+                }
+
+                open_modal();
+                action_remove_file();
+            }
+
+            const update_file_event = function () {
+                const upload_btn = document.querySelector('#upload_btn');
+                const file_input = document.querySelector('#file_input');
+
+                upload_btn.addEventListener('click', function () {
+                    file_input.click();
+                });
+
+                file_input.onchange = function () {
+                    let reader = new FileReader();
+                    reader.readAsText(file_input.files[0]);
+
+                    reader.onload = function (e) {
+                        let data = e.target.result;
+                        fetch('http://localhost:6187/', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                pages: 'YLGL',
+                                model: 'upload',
+                                data: JSON.stringify({
+                                    name: file_input.files[0].name,
+                                    data: data,
+                                })
+                            }),
+                        }).then(function (res) {
+                            return res.json();
+                        }).then(function (res) {
+                            if (res.status === 1) {
+                                alert('上传成功！');
+                                location.reload();
+                            } else {
+                                alert('错误：' + res.message);
+                            }
+                        });
+                    }
+                }
+            }
+
+            edit_file_event();
+            save_file_event();
+            remove_file_event();
+            update_file_event();
+        }
+
+        fetch('http://localhost:6187/', {
+            method: 'POST',
+            body: JSON.stringify({
+                pages: 'YLGL',
+                model: 'init',
+                data: null
+            }),
+        }).then(function (res) {
+            return res.json();
+        }).then(function (res) {
+            if (res.status === 1) {
+                const table_obj = document.querySelector('.table');
+                const table_header = '<tr><th>文件名</th><th>操作</th></tr>'
+                const button_xs = '<td><button type="button" class="btn btn-default btn-xs remove_file_btn"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> 删除</button>\n</td>';
+
+                let table_str = table_header;
+                for (let i = 0; i < res.data.length; i++) {
+                    table_str += '<tr><td>' + res.data[i] + '</td>' + button_xs + '</tr>'
+                }
+                table_obj.innerHTML = table_str;
+
+                table_event();
+            } else {
+                alert('错误：' + res.message);
+            }
+        });
+    }
+
+    const __main = function () {
+        init();
+    }
+
+    __main();
+</script>
+
+</body>
+</html>
